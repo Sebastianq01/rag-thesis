@@ -219,17 +219,22 @@ def test_train_split(df_transformed, test_size=0.3):
     return train_data, test_data, list(numeric_data.columns)
 
 
-def run_ar_benchmark(train_data, test_data, target_var, ar_order=1):
+def run_ar_benchmark(train_data, test_data, target_var, ar_order=1, horizon=1):
     """
     Runs an AR(p) model on the transformed dataset and returns performance metrics.
-    """
-
     
+    Args:
+        train_data (pd.DataFrame): Training data
+        test_data (pd.DataFrame): Test data
+        target_var (str): Target variable name
+        ar_order (int): Order of the AR model
+        horizon (int): Number of future points to forecast
+    """
     # Ensure the index has frequency information
     if not isinstance(train_data.index, pd.DatetimeIndex) or train_data.index.freq is None:
         train_data.index = pd.date_range(
             start=train_data.index[0],
-            periods=len(train_data),  # Use periods instead of end date
+            periods=len(train_data),
             freq='QE'
         )
     
@@ -237,12 +242,15 @@ def run_ar_benchmark(train_data, test_data, target_var, ar_order=1):
     model = AutoReg(train_data[target_var], lags=ar_order)
     model_fit = model.fit()
     
-    # Make predictions
-    predictions = model_fit.predict(start=len(train_data), end=len(train_data)+len(test_data)-1)
+    # Make predictions for the next h points
+    predictions = model_fit.forecast(steps=horizon)
+    
+    # Get the actual values for the first h points of test data
+    actuals = test_data[target_var][:horizon]
     
     # Calculate metrics
-    rmse = np.sqrt(mean_squared_error(test_data[target_var], predictions))
-    mape = calculate_mape(test_data[target_var], predictions)
+    rmse = np.sqrt(mean_squared_error(actuals, predictions))
+    mape = calculate_mape(actuals, predictions)
 
     return rmse, mape
 
