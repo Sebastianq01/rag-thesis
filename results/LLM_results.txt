@@ -1,0 +1,84 @@
+
+Results for gpt-35-turbo: Zero-shot
+==================================================
+Overall Accuracy: 0.6592 (147/223 correct)
+
+Per-Category Performance:
+------------------------------
+Theory:
+  Accuracy: 0.7500
+  Correct: 27/36
+
+Numerical:
+  Accuracy: 0.5455
+  Correct: 6/11
+
+Grouping:
+  Accuracy: 0.6000
+  Correct: 3/5
+
+Fill In Blank:
+  Accuracy: 0.6585
+  Correct: 54/82
+
+True False:
+  Accuracy: 0.6404
+  Correct: 57/89
+
+
+
+Results for gpt-35-turbo: CoT Prompting
+==================================================
+Overall Accuracy: 0.6637 (148/223 correct)
+
+Per-Category Performance:
+------------------------------
+Theory:
+  Accuracy: 0.7222
+  Correct: 26/36
+
+Numerical:
+  Accuracy: 0.2727
+  Correct: 3/11
+
+Grouping:
+  Accuracy: 0.6000
+  Correct: 3/5
+
+Fill In Blank:
+  Accuracy: 0.6707
+  Correct: 55/82
+
+True False:
+  Accuracy: 0.6854
+  Correct: 61/89
+
+
+
+Results for gpt-35-turbo: ICL Prompting
+==================================================
+Overall Accuracy: 0.7085 (158/223 correct)
+
+Per-Category Performance:
+------------------------------
+Theory:
+  Accuracy: 0.6944
+  Correct: 25/36
+
+Numerical:
+  Accuracy: 0.5455
+  Correct: 6/11
+
+Grouping:
+  Accuracy: 0.6000
+  Correct: 3/5
+
+Fill In Blank:
+  Accuracy: 0.6707
+  Correct: 55/82
+
+True False:
+  Accuracy: 0.7753
+  Correct: 69/89
+
+
