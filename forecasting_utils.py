@@ -14,6 +14,8 @@ from sklearn.metrics import mean_squared_error, r2_score
 import statsmodels.api as sm
 from statsmodels.tsa.ar_model import AutoReg
 from statsmodels.tsa.arima.model import ARIMA
+import pymc as pm
+import arviz as az
 import warnings
 
 class TimeSeriesPreprocessor:
@@ -255,88 +257,83 @@ def run_ar_benchmark(train_data, test_data, target_var, ar_order=1, horizon=1):
     return rmse, mape
 
 
-def fit_evaluate_bvar(train_data, test_data, target_var, horizon, lag_order=6):
+def fit_evaluate_bvar_pymc(train_data, test_data, horizon, lag_order=3, num_samples=200):
     """
-    Fit Bayesian VAR model and evaluate forecasts using pre-standardized data.
-    
+    Fit Bayesian VAR using PyMC with hierarchical priors and evaluate forecasts.
+
     Args:
-        train_data (pd.DataFrame): Training data (pre-standardized)
-        test_data (pd.DataFrame): Test data (pre-standardized)
-        target_var (str): Name of variable to forecast
+        train_data (pd.DataFrame): Training data (standardized)
+        test_data (pd.DataFrame): Test data (standardized)
         horizon (int): Forecast horizon
-        lag_order (int): Number of lags to include
-    
+        lag_order (int): Number of lags
+        num_samples (int): Number of MCMC samples
+
     Returns:
-        tuple: (RMSE, MAPE) for the forecasts
+        tuple: (RMSE dictionary, PyMC trace object)
     """
     try:
-        # Ensure the index has frequency information
-        if not isinstance(train_data.index, pd.DatetimeIndex) or train_data.index.freq is None:
-            train_data.index = pd.date_range(
-                start=train_data.index[0],
-                periods=len(train_data),  # Use periods instead of end date
-                freq='QE'
-        )
-        # Convert data to numpy arrays
-        train_array = np.asarray(train_data)
-        test_array = np.asarray(test_data)
-        
-        # Set up BVAR priors (Minnesota prior)
-        k = train_array.shape[1]  # Number of variables
-        
-        # Hyperparameters for Minnesota prior
-        # Tighter priors since data is standardized
-        lambda1 = 0.05  # Overall tightness (reduced from 0.1)
-        lambda2 = 0.99  # Cross-variable weighting
-        lambda3 = 1     # Lag decay
-        
-        # Create prior variance matrix for VAR coefficients
-        prior_variance = np.zeros((k * lag_order, k))
-        for i in range(k):
-            for j in range(k):
-                for l in range(lag_order):
-                    if i == j:
-                        # Own lags - since data is standardized, use same prior for all variables
-                        prior_variance[i + l*k, j] = lambda1 / ((l + 1) ** lambda3)
-                    else:
-                        # Cross-variable lags
-                        prior_variance[i + l*k, j] = (lambda1 * lambda2) / ((l + 1) ** lambda3)
-        
-        # Fit VAR model
-        model = sm.tsa.VAR(train_array)
-        results = model.fit(maxlags=lag_order, ic=None)
-        
-        # Initialize storage for forecasts and actuals
-        forecasts = []
-        actuals = []
-        
-        # Generate forecasts using rolling window approach
-        for i in range(len(test_data) - horizon + 1):
-            end_idx = i + horizon
-            
-            # Generate forecast using last lag_order observations
-            forecast = results.forecast(y=train_array[-lag_order:], steps=horizon)
-            
-            # Store the h-step ahead forecast and actual
-            if end_idx <= len(test_data):
-                forecasts.append(forecast[horizon-1])
-                actuals.append(test_array[end_idx-1])
-        
-        # Convert to numpy arrays
-        forecasts = np.array(forecasts)
-        actuals = np.array(actuals)
-        
-        # Get the index of target variable
-        target_idx = train_data.columns.get_loc(target_var)
-        
-        # Calculate metrics on standardized scale
-        rmse = np.sqrt(mean_squared_error(actuals[:, target_idx], forecasts[:, target_idx]))
-        mape = calculate_mape(actuals[:, target_idx], forecasts[:, target_idx])
-        
-        return rmse, mape
-    
+        # Ensure datetime index
+        if not isinstance(train_data.index, pd.DatetimeIndex):
+            train_data.index = pd.to_datetime(train_data.index)
+
+        # Standardize data
+        scaler = StandardScaler()
+        train_scaled = scaler.fit_transform(train_data)
+        test_scaled = scaler.transform(test_data)
+
+        num_vars = train_scaled.shape[1]  # Number of variables
+
+        # Prepare lagged data for model fitting
+        X, Y = [], []
+        for t in range(lag_order, len(train_scaled)):
+            X.append(train_scaled[t - lag_order:t].flatten())  # Flatten lags
+            Y.append(train_scaled[t])
+
+        X, Y = np.array(X), np.array(Y)
+
+        # Define Bayesian VAR model using PyMC
+        with pm.Model() as bvar_model:
+            # Priors for coefficients
+            B = pm.Normal("B", mu=0, sigma=1, shape=(lag_order * num_vars, num_vars))
+            sigma = pm.HalfNormal("sigma", sigma=1, shape=(num_vars,))
+
+            # Likelihood
+            mu = pm.math.dot(X, B)
+            Y_obs = pm.Normal("Y_obs", mu=mu, sigma=sigma, observed=Y)
+
+            # Sampling
+            trace = pm.sample(num_samples, return_inferencedata=True, target_accept=0.9)
+
+        # Forecasting using mean of posterior coefficients
+        B_mean = trace.posterior["B"].mean(dim=["chain", "draw"]).values
+
+        # Rolling forecast for multiple steps
+        current_window = train_scaled[-lag_order:].copy()
+        forecast_path = []
+
+        for _ in range(horizon):
+            x_input = current_window.flatten()
+            forecast_step = np.dot(x_input, B_mean)
+            forecast_path.append(forecast_step)
+            current_window = np.vstack([current_window[1:], forecast_step])  # Slide window
+
+        forecast_path = np.array(forecast_path)
+
+        # Inverse transform to original scale
+        forecast_actual = scaler.inverse_transform(forecast_path)
+
+        # Compute RMSE for each variable
+        rmse_dict = {}
+        for i, var in enumerate(train_data.columns):
+            actuals = test_data.iloc[:horizon, i].values
+            preds = forecast_actual[:, i]
+            rmse = np.sqrt(mean_squared_error(actuals, preds))
+            rmse_dict[var] = rmse
+
+        return rmse_dict, trace
+
     except Exception as e:
-        print(f"Error in BVAR estimation for {target_var}: {str(e)}")
+        print(f"Error in BVAR estimation: {str(e)}")
         return np.nan, np.nan
     
 

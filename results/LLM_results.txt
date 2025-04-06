@@ -82,3 +82,87 @@ True False:
   Correct: 69/89
 
 
+
+Results for gemini-2.0-flash: Zero-Shot 
+==================================================
+Overall Accuracy: 0.8475 (189/223 correct)
+
+Per-Category Performance:
+------------------------------
+Theory:
+  Accuracy: 0.8889
+  Correct: 32/36
+
+Numerical:
+  Accuracy: 0.6364
+  Correct: 7/11
+
+Grouping:
+  Accuracy: 0.6000
+  Correct: 3/5
+
+Fill In Blank:
+  Accuracy: 0.8293
+  Correct: 68/82
+
+True False:
+  Accuracy: 0.8876
+  Correct: 79/89
+
+
+
+Results for gemini-2.0-flash: Chain-of-Thought 
+==================================================
+Overall Accuracy: 0.8296 (185/223 correct)
+
+Per-Category Performance:
+------------------------------
+Theory:
+  Accuracy: 0.9167
+  Correct: 33/36
+
+Numerical:
+  Accuracy: 0.5455
+  Correct: 6/11
+
+Grouping:
+  Accuracy: 0.6000
+  Correct: 3/5
+
+Fill In Blank:
+  Accuracy: 0.7805
+  Correct: 64/82
+
+True False:
+  Accuracy: 0.8876
+  Correct: 79/89
+
+
+
+Results for gemini-2.0-flash: ICL Prompting 
+==================================================
+Overall Accuracy: 0.8475 (189/223 correct)
+
+Per-Category Performance:
+------------------------------
+Theory:
+  Accuracy: 0.8889
+  Correct: 32/36
+
+Numerical:
+  Accuracy: 0.9091
+  Correct: 10/11
+
+Grouping:
+  Accuracy: 0.6000
+  Correct: 3/5
+
+Fill In Blank:
+  Accuracy: 0.8049
+  Correct: 66/82
+
+True False:
+  Accuracy: 0.8764
+  Correct: 78/89
+
+

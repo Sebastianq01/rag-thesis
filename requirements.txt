@@ -12,3 +12,7 @@ pymc
 tdqdm
 transformers
 peft
+pybats
+arviz
+datasets
+backoff
